@@ -11,7 +11,7 @@ https://docs.djangoproject.com/en/4.1/ref/settings/
 """
 
 from pathlib import Path
-import mongoengine
+
 
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -39,7 +39,8 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
-    "User"
+    "User",
+    "Messaging"
 
 ]
 
@@ -47,7 +48,7 @@ MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
-    "django.middleware.csrf.CsrfViewMiddleware",
+    # "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
@@ -85,16 +86,25 @@ WSGI_APPLICATION = "Registration.wsgi.application"
 # }
 
 
+# DATABASES = {
+#      'default': {
+#          'ENGINE': 'djongo',
+#          'NAME': 'registration',
+#          'CLIENT': {
+#             'host': 'mongodb://localhost:27017'
+#          }
+#      }
+#  }
 DATABASES = {
-     'default': {
-         'ENGINE': 'djongo',
-         'NAME': 'registration',
-         'CLIENT': {
-            'host': 'mongodb://localhost:27017'
-         }
-     }
- }
-
+    'default': {
+        'ENGINE': 'django.db.backends.mysql',
+        'NAME': 'registration',
+        'USER':'root',
+        'PASSWORD':'ubqroot',
+        'HOST':'localhost',
+        'PORT':'3306'
+    }
+}
 
 # Password validation
 # https://docs.djangoproject.com/en/4.1/ref/settings/#auth-password-validators
