@@ -1,4 +1,5 @@
-from datetime import datetime
+from django.utils import timezone
+import datetime
 
 from django.http import HttpResponse
 from django.shortcuts import render
@@ -20,10 +21,11 @@ class Messaging:
 
             req = json.loads(request.body)
             message_model.msg_number = req.get('mobile')
-            message_model.msg_generated_datetime = datetime.now()
+            message_model.msg_generated_datetime = datetime.datetime.now(tz=timezone.utc)
             message_model.msg_status = req.get('status')
             message_model.msg_product_rid = req.get('product_rid')
             message_model.msg_count = req.get('count')
+
 
             message_model.save()
             return HttpResponse('Sent Successfully', status=200)

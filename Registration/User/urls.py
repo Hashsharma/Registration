@@ -10,5 +10,5 @@ urlpatterns = [
     path('signup/', views.Users.user_registration),
     path('signup-mobile/', views.Users.user_with_mobile_registration),
     path('verify-mobile/', views.Users.verify_users),
-
+    path('send-otp/', views.Users.send_otp),
 ]

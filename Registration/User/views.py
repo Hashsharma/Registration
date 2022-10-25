@@ -10,6 +10,7 @@ from django.utils import timezone
 import datetime
 import json
 from django.forms.models import model_to_dict
+import requests
 
 
 class Users:
@@ -19,12 +20,9 @@ class Users:
             user_model = RegistrationModel()
             req = json.loads(request.body)
 
-            result = RegistrationModel.objects.filter(user_mobile=req.get('mobile'),
-                                                      user_product_rid=req.get('productRid')).values()
+            result = Users.get_user_info(req)
 
-            result = dict(result[0])
-
-            if not result:
+            if result is None:
 
                 user_model.user_mobile = req.get('mobile')
                 user_model.user_created_datetime = datetime.datetime.now(tz=timezone.utc)
@@ -32,19 +30,32 @@ class Users:
                 user_model.user_ip_address = Users.get_ip_address(request)
                 user_model.user_otp = Users.generate_otp()
                 user_model.save()
+                Users.send_otp()
                 return HttpResponse("Sent Successfully", status=200)
 
             elif result is not None:
-
                 user_value = RegistrationModel.objects.get(pk=result['user_rid'])
                 user_value.user_mod_datetime = datetime.datetime.now(tz=timezone.utc)
                 user_value.user_otp = Users.generate_otp()
+                user_value.user_product_rid = req.get('productRid')
 
                 user_value.save()
                 return HttpResponse("Sent Successfully", status=200)
 
         except Exception as e:
-            return HttpResponse('Failed ' + str(e))
+            return HttpResponse(' Failed to register ' + str(e))
+
+    def get_user_info(user_data):
+        try:
+            result = RegistrationModel.objects.filter(user_mobile=user_data.get('mobile'),
+                                                  user_product_rid=user_data.get('productRid')).values()
+            result = dict(result[0])
+            return result
+
+        except Exception as err:
+            return None
+
+
 
     def insert_master(request):
         master = Master()
@@ -181,3 +192,9 @@ class Users:
 
         except Exception as e:
             return HttpResponse(str(e))
+
+
+    def send_otp(self):
+        result = requests.get("http://127.0.0.1:8080/message/otp-connection/")
+        return HttpResponse(result)
+
