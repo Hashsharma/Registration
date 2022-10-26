@@ -4,6 +4,8 @@ import random
 from django.http import HttpResponse
 from django.shortcuts import render
 
+from ConfigurationValues import ConfigurationValues
+from MasterConfiguration.views import MasterConfiguration
 from .models import Master, RegistrationModel
 
 from django.utils import timezone
@@ -30,7 +32,7 @@ class Users:
                 user_model.user_ip_address = Users.get_ip_address(request)
                 user_model.user_otp = Users.generate_otp()
                 user_model.save()
-                Users.send_otp()
+                Users.send_otp(req)
                 return HttpResponse("Sent Successfully", status=200)
 
             elif result is not None:
@@ -40,6 +42,7 @@ class Users:
                 user_value.user_product_rid = req.get('productRid')
 
                 user_value.save()
+                Users.send_otp(req)
                 return HttpResponse("Sent Successfully", status=200)
 
         except Exception as e:
@@ -54,8 +57,6 @@ class Users:
 
         except Exception as err:
             return None
-
-
 
     def insert_master(request):
         master = Master()
@@ -194,7 +195,11 @@ class Users:
             return HttpResponse(str(e))
 
 
-    def send_otp(self):
-        result = requests.get("http://127.0.0.1:8080/message/otp-connection/")
+    def send_otp(req):
+
+        config_value = MasterConfiguration.get_master_conf(ConfigurationValues.conf_sms_value,
+                                                           req.get('productRid'))
+
+        result = requests.post(config_value.get('config_url'), json=req)
         return HttpResponse(result)
 
