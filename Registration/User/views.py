@@ -2,8 +2,11 @@
 import random
 
 from django.http import HttpResponse
-from django.shortcuts import render
+from rest_framework import status, status, status, status
+from rest_framework.decorators import api_view
+from rest_framework.response import Response
 
+import ResponseHandler
 from ConfigurationValues import ConfigurationValues
 from MasterConfiguration.views import MasterConfiguration
 from .models import Master, RegistrationModel
@@ -11,12 +14,20 @@ from .models import Master, RegistrationModel
 from django.utils import timezone
 import datetime
 import json
-from django.forms.models import model_to_dict
+
 import requests
+# import the logging library
+# import the logging library
+import logging
+
+# Get an instance of a logger
+logger = logging.getLogger(__name__)
+logger = logging.getLogger('warning')
 
 
 class Users:
 
+    @api_view(['POST'])
     def user_with_mobile_registration(request):
         try:
             user_model = RegistrationModel()
@@ -32,8 +43,12 @@ class Users:
                 user_model.user_ip_address = Users.get_ip_address(request)
                 user_model.user_otp = Users.generate_otp()
                 user_model.save()
-                Users.send_otp(req)
-                return HttpResponse("Sent Successfully", status=200)
+                otp_result = Users.send_otp(req)
+                if otp_result.status_code == 200:
+                    return ResponseHandler.response_with_logger("Sent Successfully", status.HTTP_200_OK)
+
+                else:
+                    return Response("Failed to send OTP", status=status.HTTP_400_BAD_REQUEST)
 
             elif result is not None:
                 user_value = RegistrationModel.objects.get(pk=result['user_rid'])
@@ -42,16 +57,22 @@ class Users:
                 user_value.user_product_rid = req.get('productRid')
 
                 user_value.save()
-                Users.send_otp(req)
-                return HttpResponse("Sent Successfully", status=200)
+                logger.info('Already Registered -- Otp Sent Successfully')
+                result = Users.send_otp(req)
+                if result.status_code == 200:
+                    return ResponseHandler.response_with_logger("Sent Successfully", status.HTTP_200_OK)
+
+                else:
+                    return ResponseHandler.response_with_logger("Failed to send OTP", status=status.HTTP_400_BAD_REQUEST)
 
         except Exception as e:
-            return HttpResponse(' Failed to register ' + str(e))
+            return ResponseHandler.response_with_logger_error("Failed to send OTP " + str(e),
+                                                              status.HTTP_400_BAD_REQUEST)
 
     def get_user_info(user_data):
         try:
             result = RegistrationModel.objects.filter(user_mobile=user_data.get('mobile'),
-                                                  user_product_rid=user_data.get('productRid')).values()
+                                                      user_product_rid=user_data.get('productRid')).values()
             result = dict(result[0])
             return result
 
@@ -201,5 +222,5 @@ class Users:
                                                            req.get('productRid'))
 
         result = requests.post(config_value.get('config_url'), json=req)
-        return HttpResponse(result)
+        return result
 
