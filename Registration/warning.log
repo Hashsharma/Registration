@@ -95,3 +95,8 @@ Traceback (most recent call last):
 AssertionError: Expected a `Response`, `HttpResponse` or `HttpStreamingResponse` to be returned from the view, but received a `<class 'NoneType'>`
 Failed to send OTP response_with_logger() got an unexpected keyword argument 'status', Status=400
 Bad Request: /users/signup-mobile/
+Sent Successfully, Status=200
+Sent Successfully, Status=200
+Sent Successfully, Status=200
+Failed to send OTP response_with_logger() got an unexpected keyword argument 'status', Status=400
+Bad Request: /users/signup-mobile/

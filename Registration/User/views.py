@@ -5,10 +5,12 @@ from django.http import HttpResponse
 from rest_framework import status, status, status, status
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
+from rest_framework.views import APIView
 
-import ResponseHandler
+import LoggerHandler
 from ConfigurationValues import ConfigurationValues
 from MasterConfiguration.views import MasterConfiguration
+from .UserSerializer import UserSerializer
 from .models import Master, RegistrationModel
 
 from django.utils import timezone
@@ -25,7 +27,7 @@ logger = logging.getLogger(__name__)
 logger = logging.getLogger('warning')
 
 
-class Users:
+class Users(APIView):
 
     @api_view(['POST'])
     def user_with_mobile_registration(request):
@@ -33,7 +35,7 @@ class Users:
             user_model = RegistrationModel()
             req = json.loads(request.body)
 
-            result = Users.get_user_info(req)
+            result = Users.get_user_by_mobile(req)  # Need to check without dictionary
 
             if result is None:
 
@@ -45,7 +47,7 @@ class Users:
                 user_model.save()
                 otp_result = Users.send_otp(req)
                 if otp_result.status_code == 200:
-                    return ResponseHandler.response_with_logger("Sent Successfully", status.HTTP_200_OK)
+                    return LoggerHandler.logger_with_exception("Sent Successfully", status.HTTP_200_OK)
 
                 else:
                     return Response("Failed to send OTP", status=status.HTTP_400_BAD_REQUEST)
@@ -60,23 +62,25 @@ class Users:
                 logger.info('Already Registered -- Otp Sent Successfully')
                 result = Users.send_otp(req)
                 if result.status_code == 200:
-                    return ResponseHandler.response_with_logger("Sent Successfully", status.HTTP_200_OK)
+                    return LoggerHandler.logger_with_response("Sent Successfully", status.HTTP_200_OK)
 
                 else:
-                    return ResponseHandler.response_with_logger("Failed to send OTP", status=status.HTTP_400_BAD_REQUEST)
+                    return LoggerHandler.logger_with_response("Failed to send OTP",
+                                                              status=status.HTTP_400_BAD_REQUEST)
 
         except Exception as e:
-            return ResponseHandler.response_with_logger_error("Failed to send OTP " + str(e),
-                                                              status.HTTP_400_BAD_REQUEST)
+            return LoggerHandler.logger_with_response("Failed to send OTP " + str(e),
+                                                      status.HTTP_400_BAD_REQUEST)
 
-    def get_user_info(user_data):
+    def get_user_by_mobile(user_data):
         try:
-            result = RegistrationModel.objects.filter(user_mobile=user_data.get('mobile'),
+            query_set = RegistrationModel.objects.filter(user_mobile=user_data.get('mobile'),
                                                       user_product_rid=user_data.get('productRid')).values()
-            result = dict(result[0])
-            return result
+            user_serializer = UserSerializer(query_set, many=True)
+            return user_serializer  # Can not have two entries in table with same mobile number and product id
 
         except Exception as err:
+            LoggerHandler.logger_with_exception("Failed to get user Info", err)
             return None
 
     def insert_master(request):
@@ -101,7 +105,7 @@ class Users:
             user_model.user_ip_address = Users.get_ip_address(request)
 
             user_model.save()
-            return HttpResponse("Saved Successfullyd", status=200)
+            return HttpResponse("Saved Successfully", status=200)
 
         except Exception as e:
             return HttpResponse(str(e))
@@ -123,40 +127,44 @@ class Users:
         except Exception as e:
             return HttpResponse(str(e))
 
+    @api_view(['POST'])
     def user_update_profile(request):
         try:
             user_model = RegistrationModel()
             req = json.loads(request.body)
 
-            user_model = user_model.objects.all()
-            print(user_model)
+            query_set = Users.get_user_by_mobile(req)
+            user_model = RegistrationModel(user_model)
+            print(query_set)
 
-            if req is not None:
-                if req.first_name is not None:
-                    user_model.user_first_name = req.first_name
+            if query_set is not None:
+                if req.get('firstName') is not None:
+                    query_set.user_first_name = req.get('firstName')
 
-                if req.last_name is not None:
-                    user_model.user_first_name = req.last_name
+                if req.get('lastName') is not None:
+                    query_set.user_last_ = req.get('lastName')
 
-                if req.email is not None:
-                    user_model.email = req.email
+                if req.get('email') is not None:
+                    query_set.email = req.get('email')
 
-                if req.mobile is not None:
-                    user_model.user_mobile = req.mobile
+                # if req.get('mobile') is not None:
+                #     query_set.user_mobile = req.get('mobile')
 
-                if req.gender is not None:
-                    user_model.user_gender = req.gender
+                if req.get('gender') is not None:
+                    query_set.user_gender = req.get('gender')
 
-                if req.dob is not None:
-                    user_model.user_dob = req.dob
+                if req.get('DOB') is not None:
+                    query_set.user_dob = req.get('DOB')
 
-                if req.calculated_dob is not None:
-                    user_model.user_calculated_dob = req.calculated_dob
+                if req.get('calculatedDOB') is not None:
+                    query_set.user_calculated_dob = req.get('calculatedDOB')
 
-                if req.address is not None:
-                    user_model.user_address = req.address
+                if req.get('address') is not None:
+                    query_set.user_address = req.get('address')
 
-            return HttpResponse(user_model)
+                query_set.save()
+
+            return HttpResponse(query_set)
 
 
         except Exception as e:
@@ -215,7 +223,6 @@ class Users:
         except Exception as e:
             return HttpResponse(str(e))
 
-
     def send_otp(req):
 
         config_value = MasterConfiguration.get_master_conf(ConfigurationValues.conf_sms_value,
@@ -224,3 +231,13 @@ class Users:
         result = requests.post(config_value.get('config_url'), json=req)
         return result
 
+    # def get_users_by_id(req):
+    #     try:
+    #         result = RegistrationModel.objects.filter(user_mobile=req.get('mobile'),
+    #                                      user_product_rid=req.get('productRid')).values()
+    #
+    #         return dict(result[0])
+    #
+    #     except:
+    #
+    #         return None

@@ -5,13 +5,16 @@ logger = logging.getLogger(__name__)
 from rest_framework import status
 
 
-
-def response_with_logger(result, response):
+def logger_with_response(result, response):
     print(result + ', ' + str(response))
     logger.warning((result + ', Status=' + str(response)))
     return Response(result, status=response)
 
 
-def response_with_logger_error(result, response):
+def logger_with_response_error(result, response):
     logger.error((result + ', Status=' + str(response)))
     return Response(result, status=response)
+
+
+def logger_with_exception(message, exception):
+    logger.info(message, str(exception))
