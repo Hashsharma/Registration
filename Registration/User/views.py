@@ -2,16 +2,18 @@
 import random
 
 from django.http import HttpResponse
-from rest_framework import status, status, status, status
+from rest_framework import status
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 import LoggerHandler
-from ConfigurationValues import ConfigurationValues
+from Utility import ConfigurationUtility
+from Utility.ConfigurationUtility import convert_db_datetime
+from Utility.ConfigurationValues import ConfigurationValues
 from MasterConfiguration.views import MasterConfiguration
 from .UserSerializer import UserSerializer
-from .models import Master, RegistrationModel
+from .models import Master, UserRegistrationModel
 
 from django.utils import timezone
 import datetime
@@ -32,15 +34,15 @@ class Users(APIView):
     @api_view(['POST'])
     def user_with_mobile_registration(request):
         try:
-            user_model = RegistrationModel()
+            user_model = UserRegistrationModel()
             req = json.loads(request.body)
 
-            result = Users.get_user_by_mobile(req)  # Need to check without dictionary
+            query_set = Users.get_user_by_mobile(req)  # Need to check without dictionary
 
-            if result is None:
+            if query_set is None:  # Checking query_set is null
 
                 user_model.user_mobile = req.get('mobile')
-                user_model.user_created_datetime = datetime.datetime.now(tz=timezone.utc)
+                user_model.user_created_datetime = datetime.datetime.now()
                 user_model.user_product_rid = req.get('productRid')
                 user_model.user_ip_address = Users.get_ip_address(request)
                 user_model.user_otp = Users.generate_otp()
@@ -52,9 +54,9 @@ class Users(APIView):
                 else:
                     return Response("Failed to send OTP", status=status.HTTP_400_BAD_REQUEST)
 
-            elif result is not None:
-                user_value = RegistrationModel.objects.get(pk=result['user_rid'])
-                user_value.user_mod_datetime = datetime.datetime.now(tz=timezone.utc)
+            elif query_set is not None:
+                user_value = Users.get_user_by_id(query_set.pk)  # pk is user_rid
+                user_value.user_mod_datetime = datetime.datetime.now()
                 user_value.user_otp = Users.generate_otp()
                 user_value.user_product_rid = req.get('productRid')
 
@@ -65,8 +67,7 @@ class Users(APIView):
                     return LoggerHandler.logger_with_response("Sent Successfully", status.HTTP_200_OK)
 
                 else:
-                    return LoggerHandler.logger_with_response("Failed to send OTP",
-                                                              status=status.HTTP_400_BAD_REQUEST)
+                    return LoggerHandler.logger_with_response("Failed to send OTP", status.HTTP_400_BAD_REQUEST)
 
         except Exception as e:
             return LoggerHandler.logger_with_response("Failed to send OTP " + str(e),
@@ -74,25 +75,21 @@ class Users(APIView):
 
     def get_user_by_mobile(user_data):
         try:
-            query_set = RegistrationModel.objects.filter(user_mobile=user_data.get('mobile'),
-                                                      user_product_rid=user_data.get('productRid')).values()
-            user_serializer = UserSerializer(query_set, many=True)
-            return user_serializer  # Can not have two entries in table with same mobile number and product id
-
+            query_set = UserRegistrationModel.objects.filter(user_mobile=user_data.get('mobile'),
+                                                             user_product_rid=user_data.get('productRid'))\
+                .order_by('user_rid').reverse()
+            # user_serializer = UserSerializer(query_set, many=True)
+            if query_set.exists():
+                return query_set[0]  # Can not have two entries in table with same mobile number and product id
+            else:
+                return None
         except Exception as err:
             LoggerHandler.logger_with_exception("Failed to get user Info", err)
             return None
 
-    def insert_master(request):
-        master = Master()
-        master.master_name = "ABCD"
-
-        master.save()
-        return HttpResponse("Saved Successfully")
-
     def user_registration(request):
         try:
-            user_model = RegistrationModel()
+            user_model = UserRegistrationModel()
             req = json.loads(request.body)
             user_model.user_first_name = req.get('firstName')
             user_model.user_last_name = req.get('lastName')
@@ -100,7 +97,7 @@ class Users(APIView):
             user_model.user_mobile = req.get('mobile')
             user_model.user_address = req.get('address')
             user_model.user_gender = req.get('gender')
-            user_model.user_created_datetime = datetime.datetime.now(tz=timezone.utc)
+            user_model.user_created_datetime = datetime.datetime.now()
             user_model.user_product_rid = req.get('productRid')
             user_model.user_ip_address = Users.get_ip_address(request)
 
@@ -110,39 +107,18 @@ class Users(APIView):
         except Exception as e:
             return HttpResponse(str(e))
 
-    def user_registration_test(request):
-        try:
-            user_model = RegistrationModel()
-            user_model.user_first_name = 'anand'
-            user_model.user_last_name = 1
-            user_model.user_email = 'anand@gmail.com'
-            user_model.user_mobile = '979792345'
-            user_model.user_address = 'abcdefgh'
-            user_model.user_gender = 1
-            user_model.user_created_datetime = datetime.datetime.now()
-
-            user_model.save()
-            return HttpResponse("Saved Successfully")
-
-        except Exception as e:
-            return HttpResponse(str(e))
-
     @api_view(['POST'])
     def user_update_profile(request):
         try:
-            user_model = RegistrationModel()
             req = json.loads(request.body)
-
-            query_set = Users.get_user_by_mobile(req)
-            user_model = RegistrationModel(user_model)
-            print(query_set)
+            query_set = Users.get_user_by_id(req.get('user_rid'))
 
             if query_set is not None:
                 if req.get('firstName') is not None:
                     query_set.user_first_name = req.get('firstName')
 
                 if req.get('lastName') is not None:
-                    query_set.user_last_ = req.get('lastName')
+                    query_set.user_last_name = req.get('lastName')
 
                 if req.get('email') is not None:
                     query_set.email = req.get('email')
@@ -161,27 +137,14 @@ class Users(APIView):
 
                 if req.get('address') is not None:
                     query_set.user_address = req.get('address')
-
+        
                 query_set.save()
 
-            return HttpResponse(query_set)
-
-
-        except Exception as e:
-            return HttpResponse(str(e))
-
-    def get_users_information(request):
-
-        try:
-            user_model = RegistrationModel()
-            # req = json.loads(request.body)
-
-            user_model = RegistrationModel.objects.all().values()
-            print(user_model)
-            return HttpResponse(user_model)
+            return LoggerHandler.logger_with_response("Updated successfully", status.HTTP_200_OK)
 
         except Exception as e:
-            return HttpResponse(str(e))
+            return LoggerHandler.logger_with_response("Failed to update " + str(e),
+                                                      status.HTTP_400_BAD_REQUEST)
 
     def get_ip_address(request):
 
@@ -201,27 +164,28 @@ class Users(APIView):
         try:
             req = json.loads(request.body)
 
-            result = RegistrationModel.objects.filter(user_mobile=req.get('mobile'),
-                                                      user_product_rid=req.get('productRid')).values()
+            result = UserRegistrationModel.objects.filter(user_mobile=req.get('mobile'),
+                                                          user_product_rid=req.get('productRid'))\
+                .order_by('msg_rid').reverse()
             result = dict(result[0])
 
             if result:
                 if result['user_otp'] == req.get('otp'):
-                    user_value = RegistrationModel.objects.get(pk=result['user_rid'])
+                    user_value = UserRegistrationModel.objects.get(pk=result['user_rid'])
                     user_value.user_otp = 0
                     user_value.user_mobile_verify = 1
 
                     user_value.save()
-                    return HttpResponse("Verified Successfully", status=200)
+                    return LoggerHandler.logger_with_response("Verified Successfully", status.HTTP_200_OK)
 
                 else:
-                    return HttpResponse("Wrong OTP", status=400)
+                    return LoggerHandler.logger_with_response("Wrong OTP", status.HTTP_400_BAD_REQUEST)
 
             else:
-                return HttpResponse("Not Registered", status=400)
+                return LoggerHandler.logger_with_response("Not Registered", status.HTTP_400_BAD_REQUEST)
 
         except Exception as e:
-            return HttpResponse(str(e))
+            return LoggerHandler.logger_with_exception("Not Registered " + str(e), status.HTTP_400_BAD_REQUEST)
 
     def send_otp(req):
 
@@ -231,13 +195,12 @@ class Users(APIView):
         result = requests.post(config_value.get('config_url'), json=req)
         return result
 
-    # def get_users_by_id(req):
-    #     try:
-    #         result = RegistrationModel.objects.filter(user_mobile=req.get('mobile'),
-    #                                      user_product_rid=req.get('productRid')).values()
-    #
-    #         return dict(result[0])
-    #
-    #     except:
-    #
-    #         return None
+    def get_user_by_id(user_rid):
+        try:
+            query_set = UserRegistrationModel.objects.get(pk=user_rid)
+            return query_set  # Can not have two entries in table with same mobile number and product id
+
+        except Exception as err:
+            LoggerHandler.logger_with_exception("Failed to get user Info" + str(err), status.HTTP_400_BAD_REQUEST)
+            return None
+

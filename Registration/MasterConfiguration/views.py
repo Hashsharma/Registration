@@ -1,7 +1,5 @@
 # Create your views here.
-from ConfigurationValues import ConfigurationValues
 from MasterConfiguration.models import MasterConfigurationModels
-import json
 
 
 class MasterConfiguration:

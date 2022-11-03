@@ -4,7 +4,7 @@ import datetime
 from django.utils import timezone
 
 
-class RegistrationModel(models.Model):
+class UserRegistrationModel(models.Model):
     # user_rid = fields.IntField(primary_key=True)
     # user_first_name = fields.StringField(max_length=50)
     # user_last_name = fields.StringField(max_length=50)
